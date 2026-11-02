@@ -6,7 +6,7 @@ Smart changelog generator with interactive web editor. Built with Bun + TypeScri
 
 - 🔍 Analyze Git commits with pattern filtering
 - 🌐 Interactive web editor
-- 🏷️ 4 commit types: Feature, Bug Fix, Security, Refactor
+- 🏷️ 7 commit types (Feature, Security, Bug Fix, Performance, Refactor, Docs, Other) with [Conventional Commits](https://www.conventionalcommits.org) support, scopes and breaking-change detection
 - 📦 Group multiple commits into one entry
 - 📝 Export to Markdown, HTML, or JSON
 - 🎯 Filter, search, and sort in HTML output
@@ -65,6 +65,7 @@ This creates `.Changeolog_stage.json` with all commits.
 - `--repo <path>` - Repository path (default: current directory)
 - `--pattern <regex>` - Message pattern filter
 - `--name <name>` - Application name for changelog (default: "Changeolog")
+- `--config <path>` - Config file (default: `changeolog.config.json` if present)
 
 ### 2. Edit with Web Interface
 
@@ -136,16 +137,43 @@ Groups appear as single entries in the changelog with a badge showing commit cou
 
 ## 🎨 Commit Types
 
-Commit types are automatically detected from commit messages. The classifier supports both **English** and **Polish** keywords.
+Types are detected automatically in two steps:
 
-| Type | Emoji | Color | Auto-detected from |
-|------|-------|-------|-------------------|
-| **Feature** | ✨ | Green | `feat`, `feature`, `add`, `new`, `implement`<br/>`funkcja`, `nowa funkcja`, `dodaj`, `nowy`, `implementuj`, `wdroż` |
-| **Bug Fix** | 🐛 | Red | `fix`, `bug`, `issue`, `error`<br/>`napraw`, `błąd`, `problem` |
-| **Security** | 🔒 | Orange | `security`, `sec`, `vulnerability`, `cve`<br/>`bezpieczeństwo`, `podatność`, `wrażliwość`, `zagrożenie` |
-| **Refactor** | ♻️ | Blue | `refactor`, `restructure`, `clean up`, `extract`<br/>`refaktoryzuj`, `przebuduj`, `przeorganizuj`, `uporządkuj`, `wyodrębnij` |
+1. **Conventional Commits** (`type(scope)!: subject`) are parsed exactly. The prefix is removed from the
+   message, the scope is kept, and `!` or a `BREAKING CHANGE:` footer marks the entry as breaking.
+2. Everything else is classified by **English and Polish keywords**. The first matching type wins, in the
+   order of the table below, so "Fix new issue" is a bug, not a feature.
 
-If no pattern matches, commits default to **Feature** type. You can manually change types in the web editor.
+| Type | Emoji | Conventional prefixes | Keyword examples |
+|------|-------|-----------------------|------------------|
+| **Security** | 🔒 | `security`, `sec` | `security`, `vulnerability`, `cve`, `xss`, `bezpieczeństwo`, `podatność` |
+| **Bug Fix** | 🐛 | `fix`, `bugfix`, `hotfix` | `fix`, `bug`, `crash`, `napraw`, `błąd` |
+| **Performance** | ⚡ | `perf` | `performance`, `optimize`, `wydajność`, `optymalizacja` |
+| **Refactor** | ♻️ | `refactor` | `refactor`, `restructure`, `clean up`, `refaktoryzacja`, `przebuduj` |
+| **Docs** | 📝 | `docs`, `doc` | `docs`, `readme`, `documentation`, `dokumentacja` |
+| **Feature** | ✨ | `feat`, `feature` | `add`, `new`, `implement`, `dodaj`, `nowy`, `wdroż` |
+| **Other** | 🔧 | `chore`, `ci`, `build`, `test`, `style`, `deps`, `revert` | anything unmatched |
+
+Commits that match nothing become **Other**. You can change any type manually in the web editor.
+
+## ⚙️ Configuration
+
+Create `changeolog.config.json` in the directory where you run Changeolog (or pass `--config <path>`):
+
+```json
+{
+  "appName": "My App",
+  "patterns": {
+    "bug": ["^hotfix", "^poprawka"],
+    "docs": ["^wiki"]
+  }
+}
+```
+
+- `appName` - default application name (the `--name` flag overrides it).
+- `patterns` - extra case-insensitive regular expressions per commit type
+  (`feature`, `security`, `bug`, `perf`, `refactor`, `docs`, `other`). They are checked before the
+  built-in keywords, which makes it easy to support other languages or project conventions.
 
 ## 📄 Export Formats
 
@@ -326,7 +354,7 @@ bun run src/cli.ts web --port 8080
 5. **HTML export (Full)** is best for sharing (has interactive filters and search)
 6. **HTML export (Simple)** is great for embedding in documentation
 7. **Use `--name`** to customize the application name in changelog headers
-8. **Polish keywords** are supported for commit type detection
+8. **Polish keywords** are supported for commit type detection; add more via `changeolog.config.json`
 
 ## ❓ Troubleshooting
 
@@ -348,6 +376,7 @@ bun run src/cli.ts web --port 8080
 - Use online regex testers to verify your pattern
 
 ### Commit types not detected correctly
+- Use [Conventional Commits](https://www.conventionalcommits.org) or add your own `patterns` in the config file
 - Manually change types in the web editor
 - The classifier uses keyword matching - exact matches work best
 
@@ -378,7 +407,9 @@ Changeolog/
 **Key Components:**
 - **cli.ts**: Handles command-line arguments and orchestrates workflow
 - **git/parser.ts**: Parses Git commits using simple-git library
-- **classifier/index.ts**: Classifies commits into types using keyword patterns
+- **classifier/**: Conventional Commits parsing and keyword fallback (`keywords.ts`)
+- **config/index.ts**: Loads and validates `changeolog.config.json`
+- **util/html.ts**: HTML/JSON escaping helpers used by all generated pages
 - **stage/index.ts**: Manages the stage file (save, load, update)
 - **web/server.ts**: Serves the editor and handles API endpoints
 - **web/editor.ts**: Client-side interactive editor with filtering and editing

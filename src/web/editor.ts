@@ -221,7 +221,7 @@ export function renderEditor(data: StagedData): string {
 
         <div class="max-w-7xl mx-auto px-6 py-8">
           <!-- Stats -->
-          <div class="grid grid-cols-2 md:grid-cols-6 gap-4 mb-6">
+          <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
             <div class="bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl p-4 text-white">
               <div class="text-2xl font-bold">\${stats.total}</div>
               <div class="text-sm opacity-90">Total</div>
@@ -234,18 +234,11 @@ export function renderEditor(data: StagedData): string {
               <div class="text-2xl font-bold">\${stats.excluded}</div>
               <div class="text-sm opacity-90">Excluded</div>
             </div>
-            <div class="bg-gradient-to-br from-emerald-500 to-emerald-600 rounded-xl p-4 text-white">
-              <div class="text-2xl font-bold">\${stats.byType.feature || 0}</div>
-              <div class="text-sm opacity-90">✨ Features</div>
-            </div>
-            <div class="bg-gradient-to-br from-rose-500 to-rose-600 rounded-xl p-4 text-white">
-              <div class="text-2xl font-bold">\${stats.byType.bug || 0}</div>
-              <div class="text-sm opacity-90">🐛 Bugs</div>
-            </div>
-            <div class="bg-gradient-to-br from-amber-500 to-amber-600 rounded-xl p-4 text-white">
-              <div class="text-2xl font-bold">\${stats.byType.security || 0}</div>
-              <div class="text-sm opacity-90">🔒 Security</div>
-            </div>
+            \${Object.entries(typeConfig).filter(([type]) => stats.byType[type]).map(([type, cfg]) => \`
+            <div class="rounded-xl p-4 text-white" style="background: \${cfg.color}">
+              <div class="text-2xl font-bold">\${stats.byType[type]}</div>
+              <div class="text-sm opacity-90">\${cfg.emoji} \${cfg.label}</div>
+            </div>\`).join('')}
           </div>
 
           <!-- Filters -->
@@ -262,10 +255,7 @@ export function renderEditor(data: StagedData): string {
               <select onchange="filterType = this.value; render()" 
                 class="px-4 py-2 border border-gray-300 rounded-lg">
                 <option value="all">All Types</option>
-                <option value="feature" \${filterType === 'feature' ? 'selected' : ''}>✨ Feature</option>
-                <option value="bug" \${filterType === 'bug' ? 'selected' : ''}>🐛 Bug Fix</option>
-                <option value="security" \${filterType === 'security' ? 'selected' : ''}>🔒 Security</option>
-                <option value="refactor" \${filterType === 'refactor' ? 'selected' : ''}>♻️  Refactor</option>
+                \${Object.entries(typeConfig).map(([type, cfg]) => \`<option value="\${type}" \${filterType === type ? 'selected' : ''}>\${cfg.emoji} \${cfg.label}</option>\`).join('')}
               </select>
 
               <select onchange="sortBy = this.value; render()" 
@@ -414,10 +404,7 @@ export function renderEditor(data: StagedData): string {
             <input id="groupMessage" type="text" placeholder="Group message" 
               class="w-full px-4 py-2 border border-gray-300 rounded-lg mb-4">
             <select id="groupType" class="w-full px-4 py-2 border border-gray-300 rounded-lg mb-4">
-              <option value="feature">✨ Feature</option>
-              <option value="bug">🐛 Bug Fix</option>
-              <option value="security">🔒 Security</option>
-              <option value="refactor">♻️  Refactor</option>
+              \${Object.entries(typeConfig).map(([type, cfg]) => \`<option value="\${type}">\${cfg.emoji} \${cfg.label}</option>\`).join('')}
             </select>
             <div class="flex gap-2">
               <button onclick="closeGroupDialog()" 

@@ -1,4 +1,4 @@
-import { type StagedData, CommitType, CommitTypeConfig } from '../types';
+import { type StagedData, type CommitType, CommitTypeConfig, COMMIT_TYPES } from '../types';
 import { escapeHtml, jsonForScript, ESC_FN_SOURCE } from '../util/html';
 
 type Language = 'pl' | 'en';
@@ -57,18 +57,21 @@ const translations = {
   }
 };
 
-function getIncludedItems(data: StagedData) {
-  const commits = data.commits.filter(c => !data.excluded.includes(c.hash));
+/** "BREAKING: scope: message" for commits that carry scope/breaking metadata. */
+function formatMessage(item: { message: string; scope?: string; breaking?: boolean }): string {
+  return `${item.breaking ? 'BREAKING: ' : ''}${item.scope ? `${item.scope}: ` : ''}${item.message}`;
+}
+
+/** @param display prefix messages with scope/breaking info (Markdown/HTML); JSON keeps raw fields */
+function getIncludedItems(data: StagedData, display = true) {
+  const commits = data.commits
+    .filter(c => !data.excluded.includes(c.hash))
+    .map(c => (display ? { ...c, message: formatMessage(c) } : c));
   return { commits, groups: data.groups };
 }
 
 function groupByType(commits: any[]) {
-  const grouped: Record<CommitType, any[]> = {
-    [CommitType.FEATURE]: [],
-    [CommitType.BUG]: [],
-    [CommitType.SECURITY]: [],
-    [CommitType.REFACTOR]: []
-  };
+  const grouped = Object.fromEntries(COMMIT_TYPES.map(type => [type, [] as any[]])) as Record<CommitType, any[]>;
 
   commits.forEach(commit => {
     (grouped[commit.type as CommitType]).push(commit);
@@ -87,14 +90,9 @@ export function generateMarkdown(data: StagedData): string {
   md += `## [Unreleased] - ${new Date().toISOString().split('T')[0]}\n\n`;
   md += `> Generated from ${data.fromRef} to ${data.toRef}\n\n`;
 
-  const sections = [
-    { type: CommitType.FEATURE, title: 'Features', emoji: '✨' },
-    { type: CommitType.SECURITY, title: 'Security', emoji: '🔒' },
-    { type: CommitType.BUG, title: 'Bug Fixes', emoji: '🐛' },
-    { type: CommitType.REFACTOR, title: 'Refactoring', emoji: '♻️' }
-  ];
-
-  sections.forEach(({ type, title, emoji }) => {
+  COMMIT_TYPES.forEach(type => {
+    const { emoji, titles } = CommitTypeConfig[type];
+    const title = titles.en;
     const items = grouped[type];
     if (items.length > 0) {
       md += `### ${emoji} ${title}\n\n`;
@@ -115,7 +113,7 @@ export function generateMarkdown(data: StagedData): string {
 }
 
 export function generateJSON(data: StagedData): string {
-  const { commits, groups } = getIncludedItems(data);
+  const { commits, groups } = getIncludedItems(data, false);
   const appName = data.appName || 'Changeolog';
   
   const output = {
@@ -142,7 +140,9 @@ export function generateJSON(data: StagedData): string {
       author: c.author,
       email: c.email,
       date: c.date,
-      type: c.type
+      type: c.type,
+      scope: c.scope,
+      breaking: c.breaking
     })),
     stats: {
       total: commits.length + groups.length,
@@ -156,12 +156,10 @@ export function generateJSON(data: StagedData): string {
 }
 
 function getSectionTitles(language: Language) {
-  return {
-    [CommitType.FEATURE]: language === 'pl' ? 'Nowe Funkcje' : 'New Features',
-    [CommitType.SECURITY]: language === 'pl' ? 'Aktualizacje Bezpieczeństwa' : 'Security Updates',
-    [CommitType.BUG]: language === 'pl' ? 'Poprawki Błędów' : 'Bug Fixes',
-    [CommitType.REFACTOR]: language === 'pl' ? 'Refaktoryzacja' : 'Refactoring'
-  };
+  return Object.fromEntries(COMMIT_TYPES.map(type => [type, CommitTypeConfig[type].titles[language]])) as Record<
+    CommitType,
+    string
+  >;
 }
 
 function formatDate(date: Date, language: Language): string {
@@ -207,10 +205,7 @@ export function generateHTML(data: StagedData, template: TemplateType = 'full', 
 
   const stats = {
     total: allItems.length,
-    feature: grouped[CommitType.FEATURE].length,
-    bug: grouped[CommitType.BUG].length,
-    security: grouped[CommitType.SECURITY].length,
-    refactor: grouped[CommitType.REFACTOR].length
+    byType: Object.fromEntries(COMMIT_TYPES.map(type => [type, grouped[type].length])) as Record<CommitType, number>
   };
 
   const appName = data.appName || 'Changeolog';
@@ -231,12 +226,7 @@ function generateSimpleHTML(
   language: Language,
   appName: string
 ): string {
-  const sections = [
-    { type: CommitType.FEATURE, color: '#10B981' },
-    { type: CommitType.SECURITY, color: '#F59E0B' },
-    { type: CommitType.BUG, color: '#EF4444' },
-    { type: CommitType.REFACTOR, color: '#3B82F6' }
-  ];
+  const sections = COMMIT_TYPES.map(type => ({ type, color: CommitTypeConfig[type].color }));
 
   return `<!DOCTYPE html>
 <html lang="${language}">
@@ -353,27 +343,16 @@ function generateFullHTML(
     <section class="mb-10">
       <div class="bg-gray-50 border border-gray-200 rounded-lg p-6">
         <h2 class="text-lg font-semibold text-gray-900 mb-4">${t.summary}</h2>
-        <div class="grid grid-cols-2 md:grid-cols-5 gap-4">
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
           <div class="text-center">
             <div class="text-3xl font-bold text-gray-900">${stats.total}</div>
             <div class="text-sm text-gray-600 mt-1">${t.totalChanges}</div>
           </div>
+          ${COMMIT_TYPES.filter(type => stats.byType[type] > 0).map(type => `
           <div class="text-center">
-            <div class="text-3xl font-bold text-emerald-600">${stats.feature}</div>
-            <div class="text-sm text-gray-600 mt-1">${t.newFeatures}</div>
-          </div>
-          <div class="text-center">
-            <div class="text-3xl font-bold text-red-600">${stats.bug}</div>
-            <div class="text-sm text-gray-600 mt-1">${t.bugFixes}</div>
-          </div>
-          <div class="text-center">
-            <div class="text-3xl font-bold text-amber-600">${stats.security}</div>
-            <div class="text-sm text-gray-600 mt-1">${t.security}</div>
-          </div>
-          <div class="text-center">
-            <div class="text-3xl font-bold text-blue-600">${stats.refactor}</div>
-            <div class="text-sm text-gray-600 mt-1">${t.refactoring}</div>
-          </div>
+            <div class="text-3xl font-bold" style="color: ${CommitTypeConfig[type].color}">${stats.byType[type]}</div>
+            <div class="text-sm text-gray-600 mt-1">${sectionTitles[type]}</div>
+          </div>`).join('')}
         </div>
       </div>
     </section>
@@ -392,10 +371,7 @@ function generateFullHTML(
           <select id="typeFilter" onchange="filterChangelog()" 
             class="px-4 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-white">
             <option value="all">${t.allTypes}</option>
-            <option value="feature">${t.newFeatures}</option>
-            <option value="bug">${t.bugFixes}</option>
-            <option value="security">${t.security}</option>
-            <option value="refactor">${t.refactoring}</option>
+            ${COMMIT_TYPES.map(type => `<option value="${type}">${sectionTitles[type]}</option>`).join('')}
           </select>
           <select id="sortSelect" onchange="filterChangelog()" 
             class="px-4 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-white">
@@ -451,12 +427,9 @@ function generateFullHTML(
         }
       });
 
-      const grouped = {
-        feature: items.filter(i => i.type === 'feature'),
-        bug: items.filter(i => i.type === 'bug'),
-        security: items.filter(i => i.type === 'security'),
-        refactor: items.filter(i => i.type === 'refactor')
-      };
+      const grouped = Object.fromEntries(
+        Object.keys(typeConfig).map(type => [type, items.filter(i => i.type === type)])
+      );
 
       document.getElementById('changelogContent').innerHTML = renderSections(grouped);
     }
@@ -469,12 +442,7 @@ function generateFullHTML(
     }
 
     function renderSections(grouped) {
-      const sections = [
-        { type: 'feature', color: '#10B981' },
-        { type: 'security', color: '#F59E0B' },
-        { type: 'bug', color: '#EF4444' },
-        { type: 'refactor', color: '#3B82F6' }
-      ];
+      const sections = Object.entries(typeConfig).map(([type, cfg]) => ({ type, color: cfg.color }));
 
       return sections.map(section => {
         const items = grouped[section.type];
@@ -555,12 +523,7 @@ function renderSectionsFull(
   groups: any[],
   typeConfig: typeof CommitTypeConfig
 ): string {
-  const sections = [
-    { type: CommitType.FEATURE, color: '#10B981' },
-    { type: CommitType.SECURITY, color: '#F59E0B' },
-    { type: CommitType.BUG, color: '#EF4444' },
-    { type: CommitType.REFACTOR, color: '#3B82F6' }
-  ];
+  const sections = COMMIT_TYPES.map(type => ({ type, color: CommitTypeConfig[type].color }));
 
   return sections.map(({ type, color }) => {
     const items = grouped[type];
