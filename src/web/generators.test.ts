@@ -61,3 +61,25 @@ test('JSON export keeps raw message, scope and breaking flag', () => {
   const json = JSON.parse(generateJSON(mixed));
   expect(json.commits[0]).toMatchObject({ message: 'add login', scope: 'auth', breaking: true });
 });
+
+test('editor: selecting commits for grouping works (regression: selectedCommits scope)', () => {
+  const body = /<script>([\s\S]*?)<\/script>/.exec(renderEditor(mixed))?.[1];
+  expect(body).toBeDefined();
+
+  const classes = new Set<string>();
+  const el = {
+    innerHTML: '',
+    textContent: '',
+    value: '',
+    classList: { toggle: (c: string, on: boolean) => (on ? classes.add(c) : classes.delete(c)), add() {}, remove() {} }
+  };
+  const win: Record<string, any> = {};
+  const doc = { getElementById: () => el, querySelector: () => el };
+  new Function('window', 'document', 'fetch', body as string)(win, doc, async () => ({}));
+
+  expect(() => win.toggleCommitSelection('a', true)).not.toThrow();
+  expect(classes.has('hidden')).toBe(true); // one selected: action stays hidden
+  win.toggleCommitSelection('b', true);
+  expect(classes.has('hidden')).toBe(false); // two selected: action shows
+  expect(el.textContent).toContain('(2)');
+});

@@ -35,6 +35,7 @@ export function renderEditor(data: StagedData): string {
     let filterType = 'all';
     let sortBy = 'date';
     let sortOrder = 'desc';
+    const selectedCommits = new Set();
 
     function getFilteredCommits() {
       let commits = [...stageData.commits];
@@ -184,7 +185,6 @@ export function renderEditor(data: StagedData): string {
     function render() {
       const stats = getStats();
       const commits = getFilteredCommits();
-      const selectedCommits = new Set();
 
       document.getElementById('app').innerHTML = \`
         <!-- Header -->
@@ -312,6 +312,7 @@ export function renderEditor(data: StagedData): string {
                   <div class="flex items-start gap-4">
                     <input type="checkbox" 
                       class="mt-1 w-5 h-5"
+                      \${selectedCommits.has(commit.hash) ? 'checked' : ''}
                       onchange="window.toggleCommitSelection('\${esc(commit.hash)}', this.checked)"
                     />
                     
@@ -356,10 +357,10 @@ export function renderEditor(data: StagedData): string {
           </div>
 
           <!-- Group Selection Action -->
-          <div id="groupAction" class="fixed bottom-6 right-6 hidden">
-            <button onclick="openGroupDialog()" 
+          <div id="groupAction" class="fixed bottom-6 right-6 \${selectedCommits.size < 2 ? 'hidden' : ''}">
+            <button onclick="openGroupDialog()"
               class="px-6 py-3 bg-purple-600 text-white rounded-lg shadow-lg hover:bg-purple-700">
-              📦 Group Selected (\${Array.from(selectedCommits).length})
+              📦 Group Selected (\${selectedCommits.size})
             </button>
           </div>
         </div>
@@ -428,6 +429,7 @@ export function renderEditor(data: StagedData): string {
         selectedCommits.delete(hash);
       }
       document.getElementById('groupAction').classList.toggle('hidden', selectedCommits.size < 2);
+      document.querySelector('#groupAction button').textContent = '📦 Group Selected (' + selectedCommits.size + ')';
     };
 
     window.openGroupDialog = function() {
