@@ -1,7 +1,7 @@
 import { expect, test } from 'bun:test';
 import { generateHTML } from './generators';
 import { renderEditor } from './editor';
-import { StagedData } from '../types';
+import type { StagedData } from '../types';
 
 const evil = '<img src=x onerror=alert(1)></script><script>alert(2)</script>';
 const data = {

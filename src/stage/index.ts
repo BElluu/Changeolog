@@ -1,6 +1,6 @@
 import { existsSync } from 'fs';
 import { unlink } from 'fs/promises';
-import { StagedData, Commit, CommitGroup, CommitType } from '../types';
+import { type StagedData, type Commit, CommitGroup, CommitType } from '../types';
 
 const STAGE_FILE = '.Changeolog_stage.json';
 

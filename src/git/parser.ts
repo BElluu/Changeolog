@@ -1,11 +1,11 @@
-import { simpleGit, SimpleGit } from 'simple-git';
-import { Commit, CommitType, AnalyzeOptions } from '../types';
+import { simpleGit, type SimpleGit } from 'simple-git';
+import { type Commit, CommitType, type AnalyzeOptions } from '../types';
 import { CommitClassifier } from '../classifier';
 
 export class GitParser {
   private git: SimpleGit;
 
-  constructor(private repoPath: string) {
+  constructor(repoPath: string) {
     this.git = simpleGit(repoPath);
   }
 

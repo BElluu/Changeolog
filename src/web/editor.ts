@@ -1,4 +1,4 @@
-import { StagedData, CommitTypeConfig } from '../types';
+import { type StagedData, CommitTypeConfig } from '../types';
 import { jsonForScript, ESC_FN_SOURCE } from '../util/html';
 
 export function renderEditor(data: StagedData): string {

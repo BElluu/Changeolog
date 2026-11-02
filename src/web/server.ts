@@ -1,5 +1,5 @@
 import { StageManager, validateStagedData } from '../stage';
-import { StagedData } from '../types';
+import type { StagedData } from '../types';
 import { renderEditor } from './editor';
 import { generateHTML, generateMarkdown, generateJSON } from './generators';
 
@@ -44,13 +44,14 @@ export async function startWebServer(port: number = 3000) {
         let filename: string;
 
         switch (body.format) {
-          case 'html':
+          case 'html': {
             content = generateHTML(data, body.template || 'full', body.language || 'en');
             contentType = 'text/html';
             const langSuffix = body.language === 'pl' ? '_pl' : '';
             const templateSuffix = body.template === 'simple' ? '_simple' : '';
             filename = `CHANGELOG${templateSuffix}${langSuffix}.html`;
             break;
+          }
           case 'markdown':
             content = generateMarkdown(data);
             contentType = 'text/markdown';

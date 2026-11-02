@@ -1,4 +1,4 @@
-import { StagedData, CommitType, CommitTypeConfig } from '../types';
+import { type StagedData, CommitType, CommitTypeConfig } from '../types';
 import { escapeHtml, jsonForScript, ESC_FN_SOURCE } from '../util/html';
 
 type Language = 'pl' | 'en';
