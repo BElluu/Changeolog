@@ -1,4 +1,5 @@
-import { StagedData, CommitType, CommitTypeConfig } from '../types';
+import { type StagedData, CommitType, CommitTypeConfig } from '../types';
+import { escapeHtml, jsonForScript, ESC_FN_SOURCE } from '../util/html';
 
 type Language = 'pl' | 'en';
 type TemplateType = 'full' | 'simple';
@@ -242,7 +243,7 @@ function generateSimpleHTML(
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>${appName} - ${t.releaseNotes}</title>
+  <title>${escapeHtml(appName)} - ${t.releaseNotes}</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
@@ -254,7 +255,7 @@ function generateSimpleHTML(
 <body class="bg-white">
   <div class="max-w-5xl mx-auto px-8 py-12">
     <header class="border-b border-gray-200 pb-6 mb-8">
-      <h1 class="text-4xl font-bold text-gray-900 mb-2">${appName}</h1>
+      <h1 class="text-4xl font-bold text-gray-900 mb-2">${escapeHtml(appName)}</h1>
       <p class="text-xl text-gray-600 font-medium">${t.releaseNotes}</p>
     </header>
     ${sections.map(({ type, color }) => {
@@ -279,7 +280,7 @@ function generateSimpleHTML(
                     ${config.label}
                   </span>
                   <div class="flex-1">
-                    <div class="text-sm font-medium text-gray-900">${item.message}</div>
+                    <div class="text-sm font-medium text-gray-900">${escapeHtml(item.message)}</div>
                     ${isGroup ? `<div class="text-xs text-gray-500 mt-1">${t.groupedChange} (${item.commits.length} ${t.commits})</div>` : ''}
                   </div>
                 </div>
@@ -311,7 +312,7 @@ function generateFullHTML(
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>${appName} - ${t.releaseNotes} ${data.fromRef} → ${data.toRef}</title>
+  <title>${escapeHtml(appName)} - ${t.releaseNotes} ${escapeHtml(data.fromRef)} → ${escapeHtml(data.toRef)}</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
@@ -332,19 +333,19 @@ function generateFullHTML(
     <header class="border-b border-gray-200 pb-8 mb-10">
       <div class="flex items-start justify-between">
         <div>
-          <h1 class="text-4xl font-bold text-gray-900 mb-2">${appName}</h1>
+          <h1 class="text-4xl font-bold text-gray-900 mb-2">${escapeHtml(appName)}</h1>
           <p class="text-xl text-gray-600 font-medium">${t.releaseNotes}</p>
         </div>
         <div class="text-right">
           <div class="text-sm text-gray-500 mb-1">${t.versionRange}</div>
-          <div class="text-lg font-semibold text-gray-900">${data.fromRef} → ${data.toRef}</div>
+          <div class="text-lg font-semibold text-gray-900">${escapeHtml(data.fromRef)} → ${escapeHtml(data.toRef)}</div>
         </div>
       </div>
       <div class="mt-6 flex items-center gap-6 text-sm text-gray-600">
         <div>
           <span class="font-medium">${t.generated}:</span> ${generationDate}
         </div>
-        ${data.pattern ? `<div><span class="font-medium">${t.pattern}:</span> <code class="bg-gray-100 px-2 py-0.5 rounded text-xs">${data.pattern}</code></div>` : ''}
+        ${data.pattern ? `<div><span class="font-medium">${t.pattern}:</span> <code class="bg-gray-100 px-2 py-0.5 rounded text-xs">${escapeHtml(data.pattern)}</code></div>` : ''}
       </div>
     </header>
 
@@ -413,10 +414,11 @@ function generateFullHTML(
   </div>
 
   <script>
-    const allData = ${JSON.stringify({ grouped, groups, commits })};
-    const typeConfig = ${JSON.stringify(CommitTypeConfig)};
-    const sectionTitles = ${JSON.stringify(sectionTitles)};
-    const t = ${JSON.stringify(t)};
+    const allData = ${jsonForScript({ grouped, groups, commits })};
+    const typeConfig = ${jsonForScript(CommitTypeConfig)};
+    const sectionTitles = ${jsonForScript(sectionTitles)};
+    const t = ${jsonForScript(t)};
+    ${ESC_FN_SOURCE}
     const language = '${language}';
 
     function filterChangelog() {
@@ -505,7 +507,7 @@ function generateFullHTML(
                     const isGroup = item.commits && item.commits.length > 0;
                     const dateFormatted = formatDateShort(item.date, language);
                     return \`
-                      <tr class="changelog-item" data-type="\${item.type}" data-author="\${item.author}">
+                      <tr class="changelog-item" data-type="\${item.type}" data-author="\${esc(item.author)}">
                         <td class="px-6 py-4 whitespace-nowrap">
                           <span class="badge px-3 py-1 rounded-full text-white font-medium" 
                             style="background-color: \${config.color}">
@@ -513,11 +515,11 @@ function generateFullHTML(
                           </span>
                         </td>
                         <td class="px-6 py-4">
-                          <div class="text-sm font-medium text-gray-900">\${item.message}</div>
+                          <div class="text-sm font-medium text-gray-900">\${esc(item.message)}</div>
                           \${isGroup ? \`<div class="text-xs text-gray-500 mt-1">\${t.groupedChange} (\${item.commits.length} \${t.commits})</div>\` : ''}
                         </td>
                         <td class="px-6 py-4 whitespace-nowrap">
-                          <div class="text-sm text-gray-700">\${item.author}</div>
+                          <div class="text-sm text-gray-700">\${esc(item.author)}</div>
                         </td>
                         <td class="px-6 py-4 whitespace-nowrap">
                           <div class="text-sm text-gray-600">\${dateFormatted}</div>
@@ -526,7 +528,7 @@ function generateFullHTML(
                           \${isGroup ? \`
                             <span class="text-xs text-gray-500 font-mono">\${t.group}</span>
                           \` : \`
-                            <code class="text-xs bg-gray-100 px-2 py-1 rounded font-mono text-gray-700">\${item.shortHash}</code>
+                            <code class="text-xs bg-gray-100 px-2 py-1 rounded font-mono text-gray-700">\${esc(item.shortHash)}</code>
                           \`}
                         </td>
                       </tr>
@@ -599,11 +601,11 @@ function renderSectionsFull(
                       </span>
                     </td>
                     <td class="px-6 py-4">
-                      <div class="text-sm font-medium text-gray-900">${item.message}</div>
+                      <div class="text-sm font-medium text-gray-900">${escapeHtml(item.message)}</div>
                       ${isGroup ? `<div class="text-xs text-gray-500 mt-1">${t.groupedChange} (${item.commits.length} ${t.commits})</div>` : ''}
                     </td>
                     <td class="px-6 py-4 whitespace-nowrap">
-                      <div class="text-sm text-gray-700">${item.author}</div>
+                      <div class="text-sm text-gray-700">${escapeHtml(item.author)}</div>
                     </td>
                     <td class="px-6 py-4 whitespace-nowrap">
                       <div class="text-sm text-gray-600">${dateFormatted}</div>
@@ -612,7 +614,7 @@ function renderSectionsFull(
                       ${isGroup ? `
                         <span class="text-xs text-gray-500 font-mono">${t.group}</span>
                       ` : `
-                        <code class="text-xs bg-gray-100 px-2 py-1 rounded font-mono text-gray-700">${item.shortHash}</code>
+                        <code class="text-xs bg-gray-100 px-2 py-1 rounded font-mono text-gray-700">${escapeHtml(item.shortHash)}</code>
                       `}
                     </td>
                   </tr>

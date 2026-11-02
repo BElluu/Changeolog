@@ -1,11 +1,11 @@
-import { simpleGit, SimpleGit } from 'simple-git';
-import { Commit, CommitType, AnalyzeOptions } from '../types';
+import { simpleGit, type SimpleGit } from 'simple-git';
+import { type Commit, CommitType, type AnalyzeOptions } from '../types';
 import { CommitClassifier } from '../classifier';
 
 export class GitParser {
   private git: SimpleGit;
 
-  constructor(private repoPath: string) {
+  constructor(repoPath: string) {
     this.git = simpleGit(repoPath);
   }
 
@@ -19,7 +19,12 @@ export class GitParser {
       let commits = log.all.map(commit => this.parseCommit(commit));
 
       if (options.pattern) {
-        const pattern = new RegExp(options.pattern.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
+        let pattern: RegExp;
+        try {
+          pattern = new RegExp(options.pattern);
+        } catch (e) {
+          throw new Error(`Invalid --pattern regex "${options.pattern}": ${(e as Error).message}`);
+        }
         commits = commits.filter(c => pattern.test(c.message));
       }
 

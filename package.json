@@ -1,25 +1,43 @@
 {
-    "name": "Changeolog",
-    "version": "1.0.0",
-    "description": "Smart changelog generator with web editor",
-    "module": "src/cli.ts",
-    "type": "module",
-    "bin": {
-      "Changeolog": "./src/cli.ts"
-    },
-    "scripts": {
-      "start": "bun run src/cli.ts",
-      "build": "bun build src/cli.ts --outdir dist --target bun",
-      "test": "bun test",
-      "dev": "bun --watch src/cli.ts"
-    },
-    "dependencies": {
-      "simple-git": "^3.21.0"
-    },
-    "devDependencies": {
-      "@types/bun": "latest"
-    },
-    "peerDependencies": {
-      "typescript": "^5.0.0"
-    }
+  "name": "changeolog",
+  "version": "1.0.0",
+  "description": "Smart changelog generator with an interactive web editor",
+  "license": "MIT",
+  "author": "Bartlomiej Komendarczuk",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/BElluu/Changeolog.git"
+  },
+  "bugs": "https://github.com/BElluu/Changeolog/issues",
+  "homepage": "https://github.com/BElluu/Changeolog#readme",
+  "keywords": ["changelog", "release-notes", "git", "cli", "bun"],
+  "type": "module",
+  "module": "src/cli.ts",
+  "engines": {
+    "bun": ">=1.0.0"
+  },
+  "bin": {
+    "changeolog": "./src/cli.ts",
+    "Changeolog": "./src/cli.ts"
+  },
+  "files": ["src", "!src/**/*.test.ts", "README.md", "LICENSE"],
+  "scripts": {
+    "start": "bun run src/cli.ts",
+    "build": "bun build src/cli.ts --outdir dist --target bun",
+    "test": "bun test",
+    "typecheck": "tsc --noEmit",
+    "lint": "biome lint src",
+    "check": "bun run typecheck && bun run lint && bun test",
+    "dev": "bun --watch src/cli.ts"
+  },
+  "dependencies": {
+    "simple-git": "^3.21.0"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^2.6.4",
+    "@types/bun": "latest"
+  },
+  "peerDependencies": {
+    "typescript": "^5.0.0"
   }
+}

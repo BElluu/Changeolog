@@ -106,7 +106,7 @@ async function analyze() {
     console.log('\n💡 Next: Run "Changeolog web" to edit commits');
 
   } catch (error) {
-    console.error('❌ Error:', error);
+    console.error('❌ Error:', error instanceof Error ? error.message : error);
     process.exit(1);
   }
 }
@@ -119,7 +119,11 @@ async function web() {
     process.exit(1);
   }
 
-  const port = parseInt(values.port!);
+  const port = Number(values.port);
+  if (!Number.isInteger(port) || port < 1 || port > 65535) {
+    console.error(`❌ Invalid --port: ${values.port}`);
+    process.exit(1);
+  }
   console.log(`🌐 Starting web editor on http://localhost:${port}`);
   console.log('Press Ctrl+C to stop\n');
   
@@ -127,12 +131,8 @@ async function web() {
 }
 
 async function clean() {
-  try {
-    await Bun.write('.Changeolog_stage.json', '');
-    console.log('✅ Stage file removed');
-  } catch (error) {
-    console.log('ℹ️  No stage file to clean');
-  }
+  const removed = await new StageManager().remove();
+  console.log(removed ? '✅ Stage file removed' : 'ℹ️  No stage file to clean');
 }
 
 switch (command) {
