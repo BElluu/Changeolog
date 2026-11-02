@@ -1,0 +1,37 @@
+---
+import Docs from '../layouts/Docs.astro'
+import { descriptionOf, getGuides, getNav, REPO_URL } from '../nav'
+
+const nav = await getNav()
+const descriptions = new Map((await getGuides()).map((guide) => [guide.id, descriptionOf(guide)]))
+---
+
+<Docs title="Changeolog documentation">
+  <header class="article-header hero" slot="header">
+    <p class="eyebrow">Documentation</p>
+    <h1>Turn git history into a changelog</h1>
+    <p class="lede">
+      Changeolog reads your commits, sorts them into types, lets you review them in a local web editor
+      and exports Markdown, HTML or JSON. It also runs unattended in CI.
+    </p>
+    <img class="hero-shot" src="/editor.jpg" alt="The Changeolog web editor" width="1120" height="1087" />
+    <div class="hero-actions">
+      <a class="btn btn-primary" href="/getting-started/">Get started</a>
+      <a class="btn btn-ghost" href={REPO_URL}>GitHub</a>
+    </div>
+  </header>
+
+  {nav.map((section) => (
+    <section class="card-section">
+      <h2 class="nav-label">{section.label}</h2>
+      <div class="cards">
+        {section.links.map((link) => (
+          <a class="card" href={link.href}>
+            <span class="card-title">{link.label}</span>
+            <span class="card-text">{descriptions.get(link.slug)}</span>
+          </a>
+        ))}
+      </div>
+    </section>
+  ))}
+</Docs>
