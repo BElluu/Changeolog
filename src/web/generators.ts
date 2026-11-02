@@ -1,5 +1,6 @@
 import { type StagedData, type CommitType, CommitTypeConfig, COMMIT_TYPES } from '../types';
 import { escapeHtml, jsonForScript, ESC_FN_SOURCE } from '../util/html';
+import { commitUrl, hashHtml, linkifyHtml, linkifyMarkdown } from '../links';
 
 type Language = 'pl' | 'en';
 type TemplateType = 'full' | 'simple';
@@ -80,36 +81,42 @@ function groupByType(commits: any[]) {
   return grouped;
 }
 
-export function generateMarkdown(data: StagedData): string {
+/** One release section (`## [version] - date` plus its type sections), without file header. */
+export function generateMarkdownRelease(data: StagedData): string {
   const { commits, groups } = getIncludedItems(data);
-  const allItems = [...groups, ...commits];
-  const grouped = groupByType(allItems);
-  const appName = data.appName || 'Changeolog';
+  const grouped = groupByType([...groups, ...commits]);
+  const release = data.release ?? 'Unreleased';
+  const date = data.releaseDate ?? new Date().toISOString().split('T')[0];
 
-  let md = `# ${appName} Changelog\n\n`;
-  md += `## [Unreleased] - ${new Date().toISOString().split('T')[0]}\n\n`;
-  md += `> Generated from ${data.fromRef} to ${data.toRef}\n\n`;
+  let md = `## [${release}] - ${date}\n\n`;
 
   COMMIT_TYPES.forEach(type => {
     const { emoji, titles } = CommitTypeConfig[type];
-    const title = titles.en;
     const items = grouped[type];
-    if (items.length > 0) {
-      md += `### ${emoji} ${title}\n\n`;
-      items.forEach(item => {
-        const hash = item.commits ? `[Group]` : `\`${item.shortHash}\``;
-        const message = item.message;
-        const author = item.author;
-        md += `- ${message} (${author}) ${hash}\n`;
-      });
-      md += '\n';
-    }
+    if (items.length === 0) return;
+    md += `### ${emoji} ${titles.en}\n\n`;
+    items.forEach(item => {
+      const hash = item.commits
+        ? '[Group]'
+        : data.repoUrl
+          ? `[\`${item.shortHash}\`](${commitUrl(data.repoUrl, item.hash)})`
+          : `\`${item.shortHash}\``;
+      md += `- ${linkifyMarkdown(item.message, data.repoUrl)} (${item.author}) ${hash}\n`;
+    });
+    md += '\n';
   });
 
-  md += `---\n`;
-  md += `*Generated with ${appName} on ${new Date().toLocaleString()}*\n`;
-
   return md;
+}
+
+export function generateMarkdown(data: StagedData): string {
+  const appName = data.appName || 'Changeolog';
+  return (
+    `# ${appName} Changelog\n\n` +
+    `> Generated from ${data.fromRef} to ${data.toRef}\n\n` +
+    generateMarkdownRelease(data) +
+    `---\n*Generated with ${appName} on ${new Date().toLocaleString()}*\n`
+  );
 }
 
 export function generateJSON(data: StagedData): string {
@@ -117,8 +124,8 @@ export function generateJSON(data: StagedData): string {
   const appName = data.appName || 'Changeolog';
   
   const output = {
-    version: 'Unreleased',
-    date: new Date().toISOString().split('T')[0],
+    version: data.release ?? 'Unreleased',
+    date: data.releaseDate ?? new Date().toISOString().split('T')[0],
     appName,
     metadata: {
       fromRef: data.fromRef,
@@ -196,8 +203,19 @@ function formatDateShort(date: Date, language: Language): string {
   });
 }
 
+/** Adds pre-escaped, link-enriched HTML fragments used by the page templates. */
+function decorate<T extends { message: string; hash?: string; shortHash?: string }>(item: T, repoUrl?: string) {
+  return {
+    ...item,
+    messageHtml: linkifyHtml(item.message, repoUrl),
+    hashHtml: item.hash && item.shortHash ? hashHtml(item.shortHash, item.hash, repoUrl) : ''
+  };
+}
+
 export function generateHTML(data: StagedData, template: TemplateType = 'full', language: Language = 'en'): string {
-  const { commits, groups } = getIncludedItems(data);
+  const included = getIncludedItems(data);
+  const commits = included.commits.map(c => decorate(c, data.repoUrl));
+  const groups = included.groups.map(g => decorate(g, data.repoUrl));
   const allItems = [...groups, ...commits];
   const grouped = groupByType(allItems);
   const t = translations[language];
@@ -270,7 +288,7 @@ function generateSimpleHTML(
                     ${config.label}
                   </span>
                   <div class="flex-1">
-                    <div class="text-sm font-medium text-gray-900">${escapeHtml(item.message)}</div>
+                    <div class="text-sm font-medium text-gray-900">${item.messageHtml}</div>
                     ${isGroup ? `<div class="text-xs text-gray-500 mt-1">${t.groupedChange} (${item.commits.length} ${t.commits})</div>` : ''}
                   </div>
                 </div>
@@ -483,7 +501,7 @@ function generateFullHTML(
                           </span>
                         </td>
                         <td class="px-6 py-4">
-                          <div class="text-sm font-medium text-gray-900">\${esc(item.message)}</div>
+                          <div class="text-sm font-medium text-gray-900">\${item.messageHtml}</div>
                           \${isGroup ? \`<div class="text-xs text-gray-500 mt-1">\${t.groupedChange} (\${item.commits.length} \${t.commits})</div>\` : ''}
                         </td>
                         <td class="px-6 py-4 whitespace-nowrap">
@@ -496,7 +514,7 @@ function generateFullHTML(
                           \${isGroup ? \`
                             <span class="text-xs text-gray-500 font-mono">\${t.group}</span>
                           \` : \`
-                            <code class="text-xs bg-gray-100 px-2 py-1 rounded font-mono text-gray-700">\${esc(item.shortHash)}</code>
+                            <code class="text-xs bg-gray-100 px-2 py-1 rounded font-mono text-gray-700">\${item.hashHtml}</code>
                           \`}
                         </td>
                       </tr>
@@ -564,7 +582,7 @@ function renderSectionsFull(
                       </span>
                     </td>
                     <td class="px-6 py-4">
-                      <div class="text-sm font-medium text-gray-900">${escapeHtml(item.message)}</div>
+                      <div class="text-sm font-medium text-gray-900">${item.messageHtml}</div>
                       ${isGroup ? `<div class="text-xs text-gray-500 mt-1">${t.groupedChange} (${item.commits.length} ${t.commits})</div>` : ''}
                     </td>
                     <td class="px-6 py-4 whitespace-nowrap">
@@ -577,7 +595,7 @@ function renderSectionsFull(
                       ${isGroup ? `
                         <span class="text-xs text-gray-500 font-mono">${t.group}</span>
                       ` : `
-                        <code class="text-xs bg-gray-100 px-2 py-1 rounded font-mono text-gray-700">${escapeHtml(item.shortHash)}</code>
+                        <code class="text-xs bg-gray-100 px-2 py-1 rounded font-mono text-gray-700">${item.hashHtml}</code>
                       `}
                     </td>
                   </tr>

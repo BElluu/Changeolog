@@ -14,6 +14,7 @@ export function validateStagedData(input: unknown): StagedData {
   const ok =
     d && typeof d === 'object' &&
     typeof d.fromRef === 'string' && typeof d.toRef === 'string' &&
+    [d.release, d.releaseDate, d.repoUrl].every((v: unknown) => v === undefined || typeof v === 'string') &&
     Array.isArray(d.commits) && Array.isArray(d.groups) && isStringArray(d.excluded) &&
     d.commits.every((c: any) =>
       c && typeof c.hash === 'string' && typeof c.shortHash === 'string' &&
@@ -29,19 +30,14 @@ export function validateStagedData(input: unknown): StagedData {
 export class StageManager {
   async save(
     commits: Commit[],
-    fromRef: string,
-    toRef: string,
-    pattern?: string,
-    appName?: string
+    meta: Pick<StagedData, 'fromRef' | 'toRef' | 'pattern' | 'appName' | 'release' | 'releaseDate' | 'repoUrl'>
   ): Promise<void> {
     const data: StagedData = {
       version: '1.0',
       createdAt: new Date(),
       updatedAt: new Date(),
-      fromRef,
-      toRef,
-      pattern,
-      appName: appName || 'Changeolog',
+      ...meta,
+      appName: meta.appName || 'Changeolog',
       commits,
       groups: [],
       excluded: []

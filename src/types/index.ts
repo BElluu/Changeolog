@@ -39,6 +39,12 @@ export interface StagedData {
   toRef: string;
   pattern?: string;
   appName?: string;
+  /** Release label, e.g. the tag at `toRef`. Defaults to "Unreleased". */
+  release?: string;
+  /** YYYY-MM-DD of the release tag. Defaults to today. */
+  releaseDate?: string;
+  /** Browsable repository URL (https://host/owner/repo) used for commit/issue links. */
+  repoUrl?: string;
   commits: Commit[];
   groups: CommitGroup[];
   excluded: string[]; // hashes of excluded commits
