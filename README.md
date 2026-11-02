@@ -7,6 +7,8 @@ Turn your git history into a clean changelog. Changeolog reads your commits, sor
 types, lets you review and group them in a local web editor, and exports Markdown, HTML or JSON.
 It can also run unattended in CI. Built with [Bun](https://bun.sh) and TypeScript.
 
+![The Changeolog web editor](docs/editor.jpg)
+
 ## ✨ Features
 
 - 🔍 Analyzes a git range (`--from` / `--to`) with an optional regex filter
@@ -36,7 +38,9 @@ changeolog analyze --from v1.0.0     # read commits since the v1.0.0 tag
 changeolog web                       # review and edit at http://127.0.0.1:3000
 ```
 
-Export from the editor, or skip it and write the file directly:
+Export from the editor, or skip it and write the file directly (the HTML export is a single searchable, filterable page):
+
+![HTML export](docs/export.jpg)
 
 ```bash
 changeolog generate                  # CHANGELOG.md
