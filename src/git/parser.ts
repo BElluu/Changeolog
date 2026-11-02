@@ -19,7 +19,12 @@ export class GitParser {
       let commits = log.all.map(commit => this.parseCommit(commit));
 
       if (options.pattern) {
-        const pattern = new RegExp(options.pattern.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
+        let pattern: RegExp;
+        try {
+          pattern = new RegExp(options.pattern);
+        } catch (e) {
+          throw new Error(`Invalid --pattern regex "${options.pattern}": ${(e as Error).message}`);
+        }
         commits = commits.filter(c => pattern.test(c.message));
       }
 

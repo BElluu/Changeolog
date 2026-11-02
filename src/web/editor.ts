@@ -1,4 +1,5 @@
 import { StagedData, CommitTypeConfig } from '../types';
+import { jsonForScript, ESC_FN_SOURCE } from '../util/html';
 
 export function renderEditor(data: StagedData): string {
   return `<!DOCTYPE html>
@@ -18,7 +19,8 @@ export function renderEditor(data: StagedData): string {
   <div id="app"></div>
   
   <script>
-    let stageData = ${JSON.stringify(data)};
+    ${ESC_FN_SOURCE}
+    let stageData = ${jsonForScript(data)};
     
     stageData.createdAt = new Date(stageData.createdAt);
     stageData.updatedAt = new Date(stageData.updatedAt);
@@ -27,7 +29,7 @@ export function renderEditor(data: StagedData): string {
       date: new Date(c.date)
     }));
 
-    const typeConfig = ${JSON.stringify(CommitTypeConfig)};
+    const typeConfig = ${jsonForScript(CommitTypeConfig)};
 
     let searchQuery = '';
     let filterType = 'all';
@@ -194,8 +196,8 @@ export function renderEditor(data: StagedData): string {
                 <div>
                   <h1 class="text-2xl font-bold text-gray-900">Changeolog</h1>
                   <p class="text-sm text-gray-600">
-                    \${stageData.fromRef} → \${stageData.toRef}
-                    \${stageData.pattern ? \` • Pattern: \${stageData.pattern}\` : ''}
+                    \${esc(stageData.fromRef)} → \${esc(stageData.toRef)}
+                    \${stageData.pattern ? \` • Pattern: \${esc(stageData.pattern)}\` : ''}
                   </p>
                 </div>
               </div>
@@ -252,7 +254,7 @@ export function renderEditor(data: StagedData): string {
               <input 
                 type="text" 
                 placeholder="🔍 Search..."
-                value="\${searchQuery}"
+                value="\${esc(searchQuery)}"
                 oninput="searchQuery = this.value; render()"
                 class="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
               />
@@ -296,12 +298,12 @@ export function renderEditor(data: StagedData): string {
                         </span>
                         <span class="text-sm text-gray-600">\${group.commits.length} commits</span>
                       </div>
-                      <p class="font-medium text-gray-900 mb-2">\${group.message}</p>
+                      <p class="font-medium text-gray-900 mb-2">\${esc(group.message)}</p>
                       <div class="text-sm text-gray-600">
-                        👤 \${group.author} • 📅 \${new Date(group.date).toLocaleString()}
+                        👤 \${esc(group.author)} • 📅 \${new Date(group.date).toLocaleString()}
                       </div>
                     </div>
-                    <button onclick="removeGroup('\${group.id}')" 
+                    <button onclick="removeGroup('\${esc(group.id)}')" 
                       class="px-3 py-1 bg-red-100 text-red-700 rounded-lg hover:bg-red-200">
                       Ungroup
                     </button>
@@ -320,14 +322,14 @@ export function renderEditor(data: StagedData): string {
                   <div class="flex items-start gap-4">
                     <input type="checkbox" 
                       class="mt-1 w-5 h-5"
-                      onchange="window.toggleCommitSelection('\${commit.hash}', this.checked)"
+                      onchange="window.toggleCommitSelection('\${esc(commit.hash)}', this.checked)"
                     />
                     
                     <div class="flex-1 min-w-0">
                       <div class="flex items-center gap-3 mb-2 flex-wrap">
                         <select 
                           value="\${commit.type}"
-                          onchange="changeType('\${commit.hash}', this.value)"
+                          onchange="changeType('\${esc(commit.hash)}', this.value)"
                           class="px-3 py-1 rounded-full text-sm font-medium text-white border-0"
                           style="background: \${typeConfig[commit.type].color}">
                           \${Object.keys(typeConfig).map(type => \`
@@ -336,24 +338,24 @@ export function renderEditor(data: StagedData): string {
                             </option>
                           \`).join('')}
                         </select>
-                        <code class="px-2 py-1 bg-gray-100 rounded text-xs">\${commit.shortHash}</code>
+                        <code class="px-2 py-1 bg-gray-100 rounded text-xs">\${esc(commit.shortHash)}</code>
                       </div>
                       
                       <input 
                         type="text" 
-                        value="\${commit.message}"
-                        onchange="editMessage('\${commit.hash}', this.value)"
+                        value="\${esc(commit.message)}"
+                        onchange="editMessage('\${esc(commit.hash)}', this.value)"
                         class="w-full px-2 py-1 mb-2 border border-gray-300 rounded"
                       />
                       
                       <div class="flex items-center gap-4 text-sm text-gray-600">
-                        <span>👤 \${commit.author}</span>
+                        <span>👤 \${esc(commit.author)}</span>
                         <span>📅 \${new Date(commit.date).toLocaleDateString()}</span>
                         <span>🕐 \${new Date(commit.date).toLocaleTimeString()}</span>
                       </div>
                     </div>
                     
-                    <button onclick="toggleExclude('\${commit.hash}')"
+                    <button onclick="toggleExclude('\${esc(commit.hash)}')"
                       class="px-4 py-2 rounded-lg \${excluded ? 'bg-green-100 text-green-700 hover:bg-green-200' : 'bg-red-100 text-red-700 hover:bg-red-200'}">
                       \${excluded ? '✓ Include' : '✗ Exclude'}
                     </button>

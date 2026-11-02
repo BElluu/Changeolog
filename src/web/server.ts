@@ -1,4 +1,4 @@
-import { StageManager } from '../stage';
+import { StageManager, validateStagedData } from '../stage';
 import { StagedData } from '../types';
 import { renderEditor } from './editor';
 import { generateHTML, generateMarkdown, generateJSON } from './generators';
@@ -8,13 +8,14 @@ export async function startWebServer(port: number = 3000) {
 
   Bun.serve({
     port,
+    hostname: '127.0.0.1',
     async fetch(req) {
       const url = new URL(req.url);
 
       if (url.pathname === '/') {
         const data = await stage.load();
         return new Response(renderEditor(data), {
-          headers: { 'Content-Type': 'text/html' }
+          headers: { 'Content-Type': 'text/html; charset=utf-8' }
         });
       }
 
@@ -24,8 +25,13 @@ export async function startWebServer(port: number = 3000) {
       }
 
       if (url.pathname === '/data' && req.method === 'POST') {
-        const data = await req.json();
-        await stage.update(data as StagedData);
+        let data: StagedData;
+        try {
+          data = validateStagedData(await req.json());
+        } catch {
+          return Response.json({ error: 'Invalid stage data' }, { status: 400 });
+        }
+        await stage.update(data);
         return Response.json({ success: true });
       }
 
@@ -71,5 +77,5 @@ export async function startWebServer(port: number = 3000) {
     }
   });
 
-  console.log(`✅ Server started at http://localhost:${port}`);
+  console.log(`✅ Server started at http://127.0.0.1:${port}`);
 }

@@ -1,10 +1,11 @@
 {
-    "name": "Changeolog",
+    "name": "changeolog",
     "version": "1.0.0",
     "description": "Smart changelog generator with web editor",
     "module": "src/cli.ts",
     "type": "module",
     "bin": {
+      "changeolog": "./src/cli.ts",
       "Changeolog": "./src/cli.ts"
     },
     "scripts": {
