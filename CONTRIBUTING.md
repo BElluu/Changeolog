@@ -22,7 +22,7 @@ Requires [Bun](https://bun.sh) 1.0 or newer.
 
 ## Project layout
 
-See the "Project Structure" section of the [README](README.md).
+See the "Development" section of the [README](README.md) for the source layout.
 
 ## Guidelines
 
