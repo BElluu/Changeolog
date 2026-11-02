@@ -1,7 +1,7 @@
 import { StageManager, validateStagedData } from '../stage';
 import type { StagedData } from '../types';
 import { renderEditor } from './editor';
-import { generateHTML, generateMarkdown, generateJSON } from './generators';
+import { type ExportRequest, isExportFormat, renderExport } from '../export';
 
 export async function startWebServer(port: number = 3000) {
   const stage = new StageManager();
@@ -36,35 +36,11 @@ export async function startWebServer(port: number = 3000) {
       }
 
       if (url.pathname === '/export' && req.method === 'POST') {
-        const body = await req.json() as { format: 'html' | 'markdown' | 'json'; template?: 'full' | 'simple'; language?: 'pl' | 'en' };
-        const data = await stage.load();
-        
-        let content: string;
-        let contentType: string;
-        let filename: string;
-
-        switch (body.format) {
-          case 'html': {
-            content = generateHTML(data, body.template || 'full', body.language || 'en');
-            contentType = 'text/html';
-            const langSuffix = body.language === 'pl' ? '_pl' : '';
-            const templateSuffix = body.template === 'simple' ? '_simple' : '';
-            filename = `CHANGELOG${templateSuffix}${langSuffix}.html`;
-            break;
-          }
-          case 'markdown':
-            content = generateMarkdown(data);
-            contentType = 'text/markdown';
-            filename = 'CHANGELOG.md';
-            break;
-          case 'json':
-            content = generateJSON(data);
-            contentType = 'application/json';
-            filename = 'changelog.json';
-            break;
-          default:
-            return Response.json({ error: 'Invalid format' }, { status: 400 });
+        const body = (await req.json().catch(() => ({}))) as Partial<ExportRequest>;
+        if (!isExportFormat(body.format)) {
+          return Response.json({ error: 'Invalid format' }, { status: 400 });
         }
+        const { content, contentType, filename } = renderExport(await stage.load(), body as ExportRequest);
 
         return new Response(content, {
           headers: {

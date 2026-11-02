@@ -65,6 +65,8 @@ This creates `.Changeolog_stage.json` with all commits.
 - `--repo <path>` - Repository path (default: current directory)
 - `--pattern <regex>` - Message pattern filter
 - `--name <name>` - Application name for changelog (default: "Changeolog")
+- `--release <name>` - Release label (default: tag at `--to`, else "Unreleased")
+- `--repo-url <url>` - Repository URL for links (default: from `origin`)
 - `--config <path>` - Config file (default: `changeolog.config.json` if present)
 
 ### 2. Edit with Web Interface
@@ -103,7 +105,47 @@ In the web interface, click:
 - **Simple template**: Minimal design with only type badges and descriptions
 - **Language**: English or Polish (affects section titles and labels)
 
-### 4. Clean Up
+### 4. Generate Without the Browser (CI / release scripts)
+
+`generate` writes the changelog straight from the stage file, so you can skip the editor:
+
+```bash
+# Create or refresh CHANGELOG.md
+changeolog analyze --from v1.0.0 && changeolog generate
+
+# Insert this release at the top of an existing CHANGELOG.md
+# (re-running replaces the same "## [version]" section instead of duplicating it)
+changeolog generate --update
+
+# Other formats / destinations
+changeolog generate --format html --template simple --language pl -o docs/release.html
+changeolog generate --format json -o -        # print to stdout
+```
+
+| Option | Description |
+|--------|-------------|
+| `--format` | `markdown` (default), `html` or `json` |
+| `-o, --output` | Output file, `-` for stdout. Defaults to `CHANGELOG.md`, `CHANGELOG.html` or `changelog.json` |
+| `--update` | Markdown only: merge this release into the existing file (newest first) |
+| `--template`, `--language` | HTML only: `full`/`simple`, `en`/`pl` |
+
+**Release name and date.** If `--to` points exactly at a tag (e.g. `--to v1.2.0`), the tag becomes the
+release name and its commit date the release date. Otherwise the section is called `Unreleased`.
+Use `analyze --release 1.2.0` to set the name yourself.
+
+**Links.** Commit hashes and `#123` references are linked automatically. The repository URL is taken from
+the `origin` remote (credentials in the URL are dropped); override it with `--repo-url` or `repoUrl` in
+the config file. GitHub, GitLab and Bitbucket URL styles are supported.
+
+Example GitHub Actions step:
+
+```yaml
+- run: |
+    bunx changeolog analyze --from ${{ steps.prev.outputs.tag }} --to ${{ github.ref_name }}
+    bunx changeolog generate --update
+```
+
+### 5. Clean Up
 
 ```bash
 bun run src/cli.ts clean
@@ -163,6 +205,7 @@ Create `changeolog.config.json` in the directory where you run Changeolog (or pa
 ```json
 {
   "appName": "My App",
+  "repoUrl": "https://github.com/owner/repo",
   "patterns": {
     "bug": ["^hotfix", "^poprawka"],
     "docs": ["^wiki"]
@@ -171,6 +214,7 @@ Create `changeolog.config.json` in the directory where you run Changeolog (or pa
 ```
 
 - `appName` - default application name (the `--name` flag overrides it).
+- `repoUrl` - repository URL for commit/issue links (auto-detected from `origin` if omitted).
 - `patterns` - extra case-insensitive regular expressions per commit type
   (`feature`, `security`, `bug`, `perf`, `refactor`, `docs`, `other`). They are checked before the
   built-in keywords, which makes it easy to support other languages or project conventions.
@@ -264,6 +308,8 @@ Create `changeolog.config.json` in the directory where you run Changeolog (or pa
 - `fromRef` / `toRef` - Git reference range
 - `pattern` - Optional regex pattern used for filtering
 - `appName` - Application name (from `--name` option or default)
+- `release` / `releaseDate` - Release label and date (from the tag at `--to` or `--release`)
+- `repoUrl` - Repository URL used for commit and issue links
 - `commits` - Array of all analyzed commits
 - `groups` - Array of commit groups created in web editor
 - `excluded` - Array of commit hashes excluded from changelog

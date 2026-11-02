@@ -4,7 +4,10 @@ import { parseArgs } from 'util';
 import { GitParser } from './git/parser';
 import { StageManager } from './stage';
 import { loadConfig } from './config';
+import { isExportFormat, mergeChangelog, renderExport, type ExportRequest } from './export';
+import { normalizeRepoUrl } from './links';
 import { COMMIT_TYPES, CommitTypeConfig } from './types';
+import { generateMarkdownRelease } from './web/generators';
 import { startWebServer } from './web/server';
 
 const { values, positionals } = parseArgs({
@@ -16,6 +19,13 @@ const { values, positionals } = parseArgs({
     pattern: { type: 'string' },
     name: { type: 'string' },
     config: { type: 'string' },
+    release: { type: 'string' },
+    'repo-url': { type: 'string' },
+    format: { type: 'string', default: 'markdown' },
+    output: { type: 'string', short: 'o' },
+    template: { type: 'string', default: 'full' },
+    language: { type: 'string', default: 'en' },
+    update: { type: 'boolean' },
     port: { type: 'string', default: '3000' },
     help: { type: 'boolean', short: 'h' }
   },
@@ -34,6 +44,7 @@ Usage:
 Commands:
   analyze     Analyze git commits and create stage file
   web         Start web editor
+  generate    Write the changelog from the stage file (no browser, CI friendly)
   clean       Remove stage file
 
 Analyze Options:
@@ -43,6 +54,15 @@ Analyze Options:
   --pattern <regex> Message pattern filter (e.g. "\\[25\\.4\\.\\d+\\.\\d+\\]")
   --name <name>     Application name (default: Changeolog)
   --config <path>   Config file (default: changeolog.config.json if present)
+  --release <name>  Release label (default: the tag at --to, else "Unreleased")
+  --repo-url <url>  Repository URL for commit/issue links (default: from "origin")
+
+Generate Options:
+  --format <fmt>    markdown | html | json (default: markdown)
+  -o, --output <f>  Output file, "-" for stdout (default: CHANGELOG.md, CHANGELOG.html, changelog.json)
+  --update          Markdown only: insert/replace this release in an existing changelog file
+  --template <t>    HTML only: full | simple (default: full)
+  --language <l>    HTML only: en | pl (default: en)
 
 Web Options:
   --port <port>     Server port (default: 3000)
@@ -90,7 +110,20 @@ async function analyze() {
     }
 
     const stage = new StageManager();
-    await stage.save(commits, values.from, values.to!, values.pattern, appName);
+    const explicitUrl = values['repo-url'] ?? config.repoUrl;
+    const repoUrl = explicitUrl ? normalizeRepoUrl(explicitUrl) : await parser.remoteUrl();
+    if (explicitUrl && !repoUrl) throw new Error(`Invalid repository URL: ${explicitUrl}`);
+
+    const tag = await parser.resolveRelease(values.to!);
+    await stage.save(commits, {
+      fromRef: values.from,
+      toRef: values.to!,
+      pattern: values.pattern,
+      appName,
+      release: values.release ?? tag.release,
+      releaseDate: tag.releaseDate,
+      repoUrl
+    });
 
     console.log(`✅ Analyzed ${commits.length} commits`);
     console.log('\n📊 Breakdown:');
@@ -138,7 +171,64 @@ async function clean() {
   console.log(removed ? '✅ Stage file removed' : 'ℹ️  No stage file to clean');
 }
 
+async function generate() {
+  const stage = new StageManager();
+  if (!stage.exists()) {
+    console.error('❌ No stage file found. Run "Changeolog analyze" first');
+    process.exit(1);
+  }
+
+  const format = values.format === 'md' ? 'markdown' : values.format;
+  if (!isExportFormat(format)) {
+    console.error(`❌ Invalid --format: ${values.format} (use markdown, html or json)`);
+    process.exit(1);
+  }
+  if (!['full', 'simple'].includes(values.template!) || !['en', 'pl'].includes(values.language!)) {
+    console.error('❌ --template must be full|simple and --language must be en|pl');
+    process.exit(1);
+  }
+  if (values.update && format !== 'markdown') {
+    console.error('❌ --update only works with --format markdown');
+    process.exit(1);
+  }
+
+  try {
+    const data = await stage.load();
+    const request: ExportRequest = {
+      format,
+      template: values.template as ExportRequest['template'],
+      language: values.language as ExportRequest['language']
+    };
+    const { content, filename } = renderExport(data, request);
+    const output = values.output ?? filename;
+
+    if (values.update) {
+      const file = Bun.file(output);
+      const existing = (await file.exists()) ? await file.text() : undefined;
+      const merged = mergeChangelog(
+        existing,
+        generateMarkdownRelease(data),
+        data.release ?? 'Unreleased',
+        data.appName || 'Changeolog'
+      );
+      await Bun.write(output, merged);
+      console.log(`✅ Updated ${output} (${data.release ?? 'Unreleased'})`);
+    } else if (output === '-') {
+      process.stdout.write(content);
+    } else {
+      await Bun.write(output, content);
+      console.log(`✅ Wrote ${output}`);
+    }
+  } catch (error) {
+    console.error('❌ Error:', error instanceof Error ? error.message : error);
+    process.exit(1);
+  }
+}
+
 switch (command) {
+  case 'generate':
+    await generate();
+    break;
   case 'analyze':
     await analyze();
     break;

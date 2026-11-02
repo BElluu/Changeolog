@@ -5,6 +5,8 @@ export const DEFAULT_CONFIG_FILE = 'changeolog.config.json';
 export interface ChangeologConfig {
   /** Application name shown in the changelog header. */
   appName?: string;
+  /** Repository URL for commit/issue links; auto-detected from `origin` when omitted. */
+  repoUrl?: string;
   /**
    * Extra regex sources per commit type, checked before the built-in keywords.
    * Handy for other languages or project conventions, e.g. `{ "bug": ["^hotfix"] }`.
@@ -38,6 +40,7 @@ export function validateConfig(input: unknown, file = DEFAULT_CONFIG_FILE): Chan
   const c = input as Record<string, unknown>;
 
   if (c.appName !== undefined && typeof c.appName !== 'string') throw fail('"appName" must be a string');
+  if (c.repoUrl !== undefined && typeof c.repoUrl !== 'string') throw fail('"repoUrl" must be a string');
   if (c.patterns !== undefined) {
     const p = c.patterns as Record<string, unknown>;
     if (
