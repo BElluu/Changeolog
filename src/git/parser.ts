@@ -1,6 +1,6 @@
 import { simpleGit, type SimpleGit } from 'simple-git';
-import { type Commit, CommitType, type AnalyzeOptions } from '../types';
 import { CommitClassifier } from '../classifier';
+import type { AnalyzeOptions, Commit } from '../types';
 
 export class GitParser {
   private git: SimpleGit;
@@ -10,45 +10,39 @@ export class GitParser {
   }
 
   async parseRange(options: AnalyzeOptions): Promise<Commit[]> {
+    // Validate user input before touching git so errors are not wrapped.
+    const pattern = options.pattern ? compilePattern(options.pattern) : undefined;
+    const classifier = new CommitClassifier(options.extraPatterns);
+
     try {
-      const log = await this.git.log({
-        from: options.from,
-        to: options.to,
-      });
+      const log = await this.git.log({ from: options.from, to: options.to });
 
-      let commits = log.all.map(commit => this.parseCommit(commit));
-
-      if (options.pattern) {
-        let pattern: RegExp;
-        try {
-          pattern = new RegExp(options.pattern);
-        } catch (e) {
-          throw new Error(`Invalid --pattern regex "${options.pattern}": ${(e as Error).message}`);
-        }
-        commits = commits.filter(c => pattern.test(c.message));
-      }
-
-      const classifier = new CommitClassifier();
-      commits = commits.map(commit => ({
-        ...commit,
-        type: classifier.classify(commit.message)
-      }));
-
-      return commits;
+      return log.all
+        .filter(c => !pattern || pattern.test(c.message))
+        .map(c => {
+          const result = classifier.classify(c.message, c.body);
+          return {
+            hash: c.hash,
+            shortHash: c.hash.substring(0, 7),
+            message: result.message,
+            author: c.author_name,
+            email: c.author_email,
+            date: new Date(c.date),
+            type: result.type,
+            ...(result.scope && { scope: result.scope }),
+            ...(result.breaking && { breaking: true })
+          };
+        });
     } catch (error) {
       throw new Error(`Failed to parse commits: ${error}`);
     }
   }
+}
 
-  private parseCommit(gitCommit: any): Commit {
-    return {
-      hash: gitCommit.hash,
-      shortHash: gitCommit.hash.substring(0, 7),
-      message: gitCommit.message.trim(),
-      author: gitCommit.author_name,
-      email: gitCommit.author_email,
-      date: new Date(gitCommit.date),
-      type: CommitType.FEATURE // Will be classified later
-    };
+function compilePattern(source: string): RegExp {
+  try {
+    return new RegExp(source);
+  } catch (e) {
+    throw new Error(`Invalid --pattern regex "${source}": ${(e as Error).message}`);
   }
 }
