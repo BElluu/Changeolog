@@ -67,6 +67,8 @@ Reads commits and writes the stage file (`.Changeolog_stage.json`).
 
 ### `web`
 
+![Filtering, selecting and grouping commits in the editor](docs/editor.gif)
+
 Starts the editor on `127.0.0.1` (default port 3000, change with `--port`). It is a local tool and is
 not reachable from other machines.
 

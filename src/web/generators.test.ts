@@ -66,20 +66,34 @@ test('editor: selecting commits for grouping works (regression: selectedCommits 
   const body = /<script>([\s\S]*?)<\/script>/.exec(renderEditor(mixed))?.[1];
   expect(body).toBeDefined();
 
-  const classes = new Set<string>();
-  const el = {
-    innerHTML: '',
-    textContent: '',
-    value: '',
-    classList: { toggle: (c: string, on: boolean) => (on ? classes.add(c) : classes.delete(c)), add() {}, remove() {} }
-  };
-  const win: Record<string, any> = {};
-  const doc = { getElementById: () => el, querySelector: () => el };
-  new Function('window', 'document', 'fetch', body as string)(win, doc, async () => ({}));
+  const els: Record<string, any> = {};
+  const el = (id: string) =>
+    (els[id] ??= {
+      innerHTML: '', textContent: '', value: '', hidden: false, disabled: false, title: '', dataset: {},
+      listeners: {} as Record<string, (e: unknown) => void>,
+      addEventListener(type: string, fn: (e: unknown) => void) { this.listeners[type] = fn; },
+      classList: { toggle() {}, add() {}, remove() {} },
+      showModal() {}, close() {}, focus() {}
+    });
+  const doc = { getElementById: el, querySelectorAll: () => [] };
+  new Function('document', 'fetch', body as string)(doc, async () => ({}));
 
-  expect(() => win.toggleCommitSelection('a', true)).not.toThrow();
-  expect(classes.has('hidden')).toBe(true); // one selected: action stays hidden
-  win.toggleCommitSelection('b', true);
-  expect(classes.has('hidden')).toBe(false); // two selected: action shows
-  expect(el.textContent).toContain('(2)');
+  const select = (hash: string, checked: boolean) =>
+    el('list').listeners.change({
+      target: {
+        checked, dataset: {}, matches: (s: string) => s === '.check',
+        closest: () => ({ dataset: { hash }, classList: { toggle() {} } })
+      }
+    });
+
+  expect(el('selbar').hidden).toBe(true); // nothing selected
+  select('a', true);
+  expect(el('selbar').hidden).toBe(false);
+  expect(el('selGroup').disabled).toBe(true); // one selected: cannot group yet
+  select('b', true);
+  expect(el('selGroup').disabled).toBe(false); // two selected: grouping enabled
+  expect(el('selCount').textContent).toContain('2');
+  select('a', false);
+  select('b', false);
+  expect(el('selbar').hidden).toBe(true);
 });
